@@ -41,7 +41,7 @@ if "selected_model" not in st.session_state or st.session_state.selected_model_n
     with st.spinner(f"### Loading -> { selected_model }, Size -> "+str(st.session_state.model_map[selected_model])+"GB",):
         st.session_state.selected_model_name=selected_model
         st.session_state.selected_model=LlamaCpp(
-        model_path="/home/ubuntu/ai/models/"+selected_model,
+        model_path="./models/"+selected_model,
         temperature=0.75,
         max_tokens=2000,
         top_p=1,
@@ -92,13 +92,11 @@ if prompt := st.chat_input(""):
         _prompt = base_prompt.format(
             system_message=system_prompt,
             prompt=prompt,
-        )
-        is_im=False
-        is_=False
+           )
+        msg_stack=[]
         for chunk in st.session_state.selected_model.stream(_prompt):
-            if chunk=="im":is_im=True
-            if chunk=="-":is_=True
-            if "end" in chunk and is_im and is_:
+            msg_stack.append(chunk)
+            if "<|im_end|>" in "".join(msg_stack[:-15:-1][::-1]):
                 break
             full_response += chunk
             # Add a blinking cursor to simulate typing

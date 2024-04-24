@@ -8,6 +8,7 @@ from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from transformers import VitsModel, AutoTokenizer
 import torch
+from groq_models import GroqModels
 
 EMBEDDING_MODEL_NAME = "BAAI/bge-large-en"
 DEVICE_TYPE="cpu"
@@ -31,23 +32,32 @@ if "audio_model" not in st.session_state:
     st.session_state.audio_model = VitsModel.from_pretrained("facebook/mms-tts-eng")
     st.session_state.audio_tokenizer = tokenizer = AutoTokenizer.from_pretrained("facebook/mms-tts-eng")
 
-selected_model = st.sidebar.selectbox("Choose the model", st.session_state.model_list)
+local_models= "local GGUF models"
+model_provider = st.sidebar.selectbox("select Model provider", [local_models,"Groq"])
+if model_provider==local_models:
+    selected_model = st.sidebar.selectbox("Choose the model", st.session_state.model_list)
+else:
+    selected_model = st.sidebar.selectbox("Choose the model",["llama3-8b-8192","mixtral-8x7b-32768","llama3-70b-8192"] )
 is_RAG = st.sidebar.selectbox("RAG Enabled 🤔", [False,True])
 is_audio=st.sidebar.selectbox("Audio after completion🔉",[False,True])
 if is_audio:
     audio_model=st.sidebar.selectbox("Audio Model🎚️",["facebook/mms-tts-eng"])
 system_prompt=st.sidebar.text_area("System Prompt", value="You're a helpful AI assistant")
 if "selected_model" not in st.session_state or st.session_state.selected_model_name!=selected_model:
-    with st.spinner(f"### Loading -> { selected_model }, Size -> "+str(st.session_state.model_map[selected_model])+"GB",):
-        st.session_state.selected_model_name=selected_model
-        st.session_state.selected_model=LlamaCpp(
-        model_path="./models/"+selected_model,
-        temperature=0.75,
-        max_tokens=2000,
-        top_p=1,
-        n_ctx=3000,
+    if model_provider==local_models:
+        with st.spinner(f"### Loading -> { selected_model }, Size -> "+str(st.session_state.model_map[selected_model])+"GB",):
+            st.session_state.selected_model_name=selected_model
+            st.session_state.selected_model=LlamaCpp(
+            model_path="./models/"+selected_model,
+            temperature=0.75,
+            max_tokens=2000,
+            top_p=1,
+            n_ctx=3000,
         n_batch=10
     )
+    else:
+        st.session_state.selected_model_name=selected_model
+        st.session_state.selected_model=GroqModels(selected_model) 
 if is_RAG and "db" not in st.session_state:
     with st.spinner("### Loading documents for rag .. "):
         st.session_state.bge_large_embed = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME, model_kwargs=model_kwargs)

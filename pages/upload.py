@@ -6,6 +6,7 @@ import os
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from langchain.docstore.document import Document
 from langchain.document_loaders import CSVLoader, UnstructuredPDFLoader,PDFMinerLoader, TextLoader, UnstructuredExcelLoader,UnstructuredWordDocumentLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 # !apt upgrade -y
 # !apt install antiword libreoffice -y  need for word document loader
 DOCUMENT_MAP = {
@@ -40,17 +41,8 @@ st.set_page_config(
 )
 # App title and description
 st.title("Document Upload")
-st.write("Upload a document to chat about it")
-# c=st.container()
-# for i in range(10):
-#     colss=st.columns(3)
-#     with colss[1]:
-#         st.markdown("Assume some data hereasdfffff asdf asdadfasd  as dfa sdfa sdf asf as dfas dfa sdfa dsf")
-#         tmp=st.columns(4)
-#         tmp[0].button("👍",key=i)
-#         tmp[1].button("👎",key="down"+str(i))
-#         st.divider()
-# Upload document
+st.write("Upload a document to chat with it - DONOT upload any personal or sensitive information")
+
 uploaded_file = st.file_uploader("Upload a document", type=["txt", "pdf","docx","doc"])  
 if uploaded_file is not None:
     file_details = {"FileName": uploaded_file.name, "FileType": uploaded_file.type}
@@ -66,23 +58,11 @@ if uploaded_file is not None:
         temp_file.write(uploaded_file.read())
     loader=loader_class(temp_file_path)
     data=loader.load()[0]
+    text_splitter=RecursiveCharacterTextSplitter(chunk_size=1000,chunk_overlap=20,length_function= len , is_separator_regex=False)
+    data=text_splitter.split_documents([data])
     st.write("### **Success!** Your data parsing completed.")
-    if st.button("upload to db?"):
-        st.write("uploading to db")
-        db = FAISS.from_documents([data], embedding=bge_large_embed)
-        db.save_local("fiass_index")
-        st.write("uploaded 👍👍")   
-    st.write({"data":data.page_content})
-    # Read and display the content of the uploaded document
-    if uploaded_file.type == "text/plain":
-        text = uploaded_file.read()
-        st.subheader("Content of the Document")
-        st.write(text)
-# name=st.text_input("name")
-# if name:
-#     with st.spinner("please wait ..."):
-#         time.sleep(5)
-#         st.write([1,2,3,4]) 
-# 
-# 
-#  
+    st.write("uploading to db")
+    db = FAISS.from_documents(data, embedding=bge_large_embed)
+    db.save_local("fiass_index")
+    st.write("uploaded 👍👍")   
+    st.write([{"data":i.page_content} for i in data ])

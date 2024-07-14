@@ -1,0 +1,1 @@
+treamlit run chat.py --server.enableCORS=false
